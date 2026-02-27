@@ -1,15 +1,15 @@
-export interface User {
+export const EMOJIS = ['👍', '💡', '🔥', '❤️', '😂', '🤔', '👀', '🚀'];
+
+export interface IdeaWithReactions {
+  id: string;
   userId: string;
   displayName: string;
-}
-
-export interface Idea {
-  id: string;
-  text: string;
-  authorId: string;
-  authorName: string;
+  content: string;
   createdAt: number;
-  reactions: Record<string, string[]>; // emoji -> array of userIds
+  reactions: Array<{
+    id: string;
+    ideaId: string;
+    userId: string;
+    emoji: string;
+  }>;
 }
-
-export const EMOJIS = ['👍', '💡', '🔥', '❤️', '😂', '🤔', '👀', '🚀'];

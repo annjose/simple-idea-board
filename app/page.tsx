@@ -2,21 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useIdeaBoard } from './hooks/useIdeaBoard';
-import NameModal from './components/NameModal';
+import AuthModal from './components/AuthModal';
 import AddIdeaForm from './components/AddIdeaForm';
 import IdeaCard from './components/IdeaCard';
 import ThemeToggle from './components/ThemeToggle';
+import { IdeaWithReactions } from './types';
 
 export default function Page() {
-  const { user, ideas, mounted, isDark, saveUser, addIdea, toggleReaction, toggleDark } = useIdeaBoard();
+  const { user, authLoading, myProfile, ideas, mounted, isDark, addIdea, toggleReaction, toggleDark } = useIdeaBoard();
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 60_000);
-    return () => clearInterval(id);
+    const intervalId = setInterval(() => setTick(t => t + 1), 60_000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  if (!mounted) {
+  if (!mounted || authLoading) {
     return (
       <div className="min-h-screen bg-[#f7f3ee] dark:bg-slate-950 flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-4 border-indigo-300 border-t-indigo-600 animate-spin" />
@@ -24,9 +25,22 @@ export default function Page() {
     );
   }
 
+  // Show auth modal when not logged in, or logged in but no profile yet
+  const showAuthModal = !user || !myProfile;
+
+  // Transform InstantDB reaction objects → Record<emoji, userId[]> for IdeaCard
+  const ideaCards = (ideas as IdeaWithReactions[]).map(idea => ({
+    ...idea,
+    reactions: (idea.reactions ?? []).reduce<Record<string, string[]>>((acc, r) => {
+      if (!acc[r.emoji]) acc[r.emoji] = [];
+      acc[r.emoji].push(r.userId);
+      return acc;
+    }, {}),
+  }));
+
   return (
     <div className="min-h-screen bg-[#f7f3ee] dark:bg-slate-950 transition-colors duration-300">
-      {!user && <NameModal onSave={saveUser} />}
+      {showAuthModal && <AuthModal user={user} />}
 
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
@@ -36,16 +50,16 @@ export default function Page() {
             <span className="font-bold text-slate-800 dark:text-slate-100 text-lg">
               Idea Board
             </span>
-            {ideas.length > 0 && (
+            {ideaCards.length > 0 && (
               <span className="text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-medium px-2 py-0.5 rounded-full">
-                {ideas.length}
+                {ideaCards.length}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
-            {user && (
+            {user && myProfile && (
               <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
-                👋 <span className="font-medium text-slate-700 dark:text-slate-300">{user.displayName}</span>
+                👋 <span className="font-medium text-slate-700 dark:text-slate-300">{myProfile.displayName}</span>
               </span>
             )}
             <ThemeToggle isDark={isDark} onToggle={toggleDark} />
@@ -55,11 +69,11 @@ export default function Page() {
 
       {/* Main content */}
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {user && (
-          <AddIdeaForm onAdd={addIdea} authorName={user.displayName} />
+        {user && myProfile && (
+          <AddIdeaForm onAdd={addIdea} authorName={myProfile.displayName} />
         )}
 
-        {ideas.length === 0 ? (
+        {ideaCards.length === 0 ? (
           <div className="text-center py-16 space-y-3">
             <div className="text-6xl">🌱</div>
             <p className="text-slate-500 dark:text-slate-400 text-lg font-medium">
@@ -71,11 +85,11 @@ export default function Page() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ideas.map(idea => (
+            {ideaCards.map(idea => (
               <IdeaCard
                 key={idea.id}
                 idea={idea}
-                currentUserId={user?.userId ?? ''}
+                currentUserId={user?.id ?? ''}
                 onToggleReaction={toggleReaction}
                 tick={tick}
               />

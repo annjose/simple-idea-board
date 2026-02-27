@@ -1,11 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Idea, EMOJIS } from '../types';
+import { EMOJIS } from '../types';
 import { getRelativeTime, getCardColor } from '../utils/time';
 
 interface IdeaCardProps {
-  idea: Idea;
+  idea: {
+    id: string;
+    content: string;
+    displayName: string;
+    createdAt: number;
+    reactions: Record<string, string[]>;
+  };
   currentUserId: string;
   onToggleReaction: (ideaId: string, emoji: string) => void;
   tick: number; // used to force re-render for timestamp updates
@@ -43,7 +49,7 @@ export default function IdeaCard({ idea, currentUserId, onToggleReaction }: Idea
       {/* Card content */}
       <div className="flex-1 p-4">
         <p className="text-slate-800 dark:text-slate-100 text-base leading-relaxed break-words">
-          {idea.text}
+          {idea.content}
         </p>
       </div>
 
@@ -51,7 +57,7 @@ export default function IdeaCard({ idea, currentUserId, onToggleReaction }: Idea
       <div className="px-4 pb-2 pt-1">
         <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-3">
           <span className="font-medium text-slate-600 dark:text-slate-300 truncate max-w-[120px]">
-            {idea.authorName}
+            {idea.displayName}
           </span>
           <span>·</span>
           <span>{getRelativeTime(idea.createdAt)}</span>

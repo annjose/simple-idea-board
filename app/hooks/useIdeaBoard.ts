@@ -1,31 +1,29 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { User, Idea } from '../types';
+import { id } from '@instantdb/react';
+import { db } from '../db';
 
-const USER_KEY = 'idea-board-user';
-const IDEAS_KEY = 'idea-board-ideas';
 const THEME_KEY = 'idea-board-theme';
 
 export function useIdeaBoard() {
-  const [user, setUser] = useState<User | null>(null);
-  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const { isLoading: authLoading, user: rawUser } = db.useAuth();
+  const user = rawUser ?? null;
+
+  // Query ideas and reactions separately (reactions use ideaId attribute, not a link)
+  const { data: ideasData } = db.useQuery({ ideas: {} });
+  const { data: reactionsData } = db.useQuery({ reactions: {} });
+
+  // Query current user's profile via the profileUser link
+  const { data: profileData } = db.useQuery(
+    user ? { profiles: { '$user': {} } } : null
+  );
+
   const [isDark, setIsDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-
-    const savedUser = localStorage.getItem(USER_KEY);
-    if (savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch {}
-    }
-
-    const savedIdeas = localStorage.getItem(IDEAS_KEY);
-    if (savedIdeas) {
-      try { setIdeas(JSON.parse(savedIdeas)); } catch {}
-    }
-
     const savedTheme = localStorage.getItem(THEME_KEY);
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = savedTheme === 'dark' || (!savedTheme && prefersDark);
@@ -33,52 +31,41 @@ export function useIdeaBoard() {
     document.documentElement.classList.toggle('dark', dark);
   }, []);
 
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(IDEAS_KEY, JSON.stringify(ideas));
-    }
-  }, [ideas, mounted]);
+  // Find the current user's profile from the query results
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const myProfile = user ? (profileData?.profiles as any[])?.find(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (p: any) => p['$user']?.id === user.id
+  ) as { id: string; displayName: string } | undefined : undefined;
 
-  const saveUser = useCallback((displayName: string) => {
-    const newUser: User = {
-      userId: crypto.randomUUID(),
-      displayName: displayName.trim(),
-    };
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-    setUser(newUser);
-  }, []);
-
-  const addIdea = useCallback((text: string) => {
-    if (!user || !text.trim()) return;
-    const newIdea: Idea = {
-      id: crypto.randomUUID(),
-      text: text.trim(),
-      authorId: user.userId,
-      authorName: user.displayName,
-      createdAt: Date.now(),
-      reactions: {},
-    };
-    setIdeas(prev => [newIdea, ...prev]);
-  }, [user]);
+  const addIdea = useCallback((content: string) => {
+    if (!user || !myProfile || !content.trim()) return;
+    db.transact(
+      db.tx.ideas[id()].update({
+        userId: user.id,
+        displayName: myProfile.displayName,
+        content: content.trim(),
+        createdAt: Date.now(),
+      })
+    );
+  }, [user, myProfile]);
 
   const toggleReaction = useCallback((ideaId: string, emoji: string) => {
     if (!user) return;
-    setIdeas(prev => prev.map(idea => {
-      if (idea.id !== ideaId) return idea;
-      const current = idea.reactions[emoji] ?? [];
-      const hasReacted = current.includes(user.userId);
-      const updated = hasReacted
-        ? current.filter(id => id !== user.userId)
-        : [...current, user.userId];
-      return {
-        ...idea,
-        reactions: {
-          ...idea.reactions,
-          [emoji]: updated,
-        },
-      };
-    }));
-  }, [user]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allReactions = (reactionsData?.reactions as any[]) ?? [];
+    const existing = allReactions.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (r: any) => r.userId === user.id && r.emoji === emoji && r.ideaId === ideaId
+    );
+    if (existing) {
+      db.transact(db.tx.reactions[existing.id].delete());
+    } else {
+      db.transact(
+        db.tx.reactions[id()].update({ ideaId, userId: user.id, emoji })
+      );
+    }
+  }, [user, reactionsData]);
 
   const toggleDark = useCallback(() => {
     setIsDark(prev => {
@@ -89,5 +76,29 @@ export function useIdeaBoard() {
     });
   }, []);
 
-  return { user, ideas, mounted, isDark, saveUser, addIdea, toggleReaction, toggleDark };
+  // Join ideas with their reactions, sort by createdAt descending (newest first)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allReactions = (reactionsData?.reactions as any[]) ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sortedIdeas = [...((ideasData?.ideas as any[]) ?? [])]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((idea: any) => ({
+      ...idea,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      reactions: allReactions.filter((r: any) => r.ideaId === idea.id),
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .sort((a: any, b: any) => b.createdAt - a.createdAt);
+
+  return {
+    user,
+    authLoading,
+    myProfile,
+    ideas: sortedIdeas,
+    mounted,
+    isDark,
+    addIdea,
+    toggleReaction,
+    toggleDark,
+  };
 }
