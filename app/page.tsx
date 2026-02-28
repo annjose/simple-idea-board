@@ -1,21 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useIdeaBoard } from './hooks/useIdeaBoard';
 import AuthModal from './components/AuthModal';
-import AddIdeaForm from './components/AddIdeaForm';
-import IdeaCard from './components/IdeaCard';
 import ThemeToggle from './components/ThemeToggle';
 import { IdeaWithReactions } from './types';
 
-export default function Page() {
-  const { user, authLoading, myProfile, ideas, mounted, isDark, addIdea, toggleReaction, toggleDark } = useIdeaBoard();
-  const [tick, setTick] = useState(0);
+// tldraw accesses browser APIs — load client-side only
+const CanvasBoard = dynamic(() => import('./components/canvas/CanvasBoard'), { ssr: false });
 
-  useEffect(() => {
-    const intervalId = setInterval(() => setTick(t => t + 1), 60_000);
-    return () => clearInterval(intervalId);
-  }, []);
+export default function Page() {
+  const {
+    user,
+    authLoading,
+    myProfile,
+    ideas,
+    mounted,
+    isDark,
+    addIdea,
+    toggleReaction,
+    updateIdeaPosition,
+    toggleDark,
+  } = useIdeaBoard();
 
   if (!mounted || authLoading) {
     return (
@@ -25,34 +31,23 @@ export default function Page() {
     );
   }
 
-  // Show auth modal when not logged in, or logged in but no profile yet
   const showAuthModal = !user || !myProfile;
 
-  // Transform InstantDB reaction objects → Record<emoji, userId[]> for IdeaCard
-  const ideaCards = (ideas as IdeaWithReactions[]).map(idea => ({
-    ...idea,
-    reactions: (idea.reactions ?? []).reduce<Record<string, string[]>>((acc, r) => {
-      if (!acc[r.emoji]) acc[r.emoji] = [];
-      acc[r.emoji].push(r.userId);
-      return acc;
-    }, {}),
-  }));
-
   return (
-    <div className="min-h-screen bg-[#f7f3ee] dark:bg-slate-950 transition-colors duration-300">
+    <div className="fixed inset-0 bg-[#f7f3ee] dark:bg-slate-950">
       {showAuthModal && <AuthModal user={user} />}
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      {/* Header overlay */}
+      <header className="absolute top-0 left-0 right-0 z-50 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+        <div className="max-w-none px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">💡</span>
             <span className="font-bold text-slate-800 dark:text-slate-100 text-lg">
               Idea Board
             </span>
-            {ideaCards.length > 0 && (
+            {ideas.length > 0 && (
               <span className="text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-medium px-2 py-0.5 rounded-full">
-                {ideaCards.length}
+                {ideas.length}
               </span>
             )}
           </div>
@@ -67,36 +62,17 @@ export default function Page() {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {user && myProfile && (
-          <AddIdeaForm onAdd={addIdea} authorName={myProfile.displayName} />
-        )}
-
-        {ideaCards.length === 0 ? (
-          <div className="text-center py-16 space-y-3">
-            <div className="text-6xl">🌱</div>
-            <p className="text-slate-500 dark:text-slate-400 text-lg font-medium">
-              No ideas yet!
-            </p>
-            <p className="text-slate-400 dark:text-slate-500 text-sm">
-              Be the first to share one.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ideaCards.map(idea => (
-              <IdeaCard
-                key={idea.id}
-                idea={idea}
-                currentUserId={user?.id ?? ''}
-                onToggleReaction={toggleReaction}
-                tick={tick}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+      {/* Canvas — only shown when authenticated */}
+      {!showAuthModal && (
+        <CanvasBoard
+          currentUserId={user!.id}
+          displayName={myProfile!.displayName}
+          ideas={ideas as IdeaWithReactions[]}
+          addIdea={addIdea}
+          toggleReaction={toggleReaction}
+          updateIdeaPosition={updateIdeaPosition}
+        />
+      )}
     </div>
   );
 }

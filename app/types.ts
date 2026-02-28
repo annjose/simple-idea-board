@@ -6,6 +6,8 @@ export interface IdeaWithReactions {
   displayName: string;
   content: string;
   createdAt: number;
+  x?: number;
+  y?: number;
   reactions: Array<{
     id: string;
     ideaId: string;

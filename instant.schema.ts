@@ -9,6 +9,8 @@ const _schema = i.schema({
       displayName: i.string(),
       content: i.string(),
       createdAt: i.number().indexed(),
+      x: i.number(),
+      y: i.number(),
     }),
     reactions: i.entity({
       ideaId: i.string().indexed(),

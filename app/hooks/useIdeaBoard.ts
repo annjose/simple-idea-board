@@ -38,7 +38,7 @@ export function useIdeaBoard() {
     (p: any) => p['$user']?.id === user.id
   ) as { id: string; displayName: string } | undefined : undefined;
 
-  const addIdea = useCallback((content: string) => {
+  const addIdea = useCallback((content: string, x?: number, y?: number) => {
     if (!user || !myProfile || !content.trim()) return;
     db.transact(
       db.tx.ideas[id()].update({
@@ -46,9 +46,15 @@ export function useIdeaBoard() {
         displayName: myProfile.displayName,
         content: content.trim(),
         createdAt: Date.now(),
+        x: x ?? 0,
+        y: y ?? 0,
       })
     );
   }, [user, myProfile]);
+
+  const updateIdeaPosition = useCallback((ideaId: string, x: number, y: number) => {
+    db.transact(db.tx.ideas[ideaId].update({ x, y }));
+  }, []);
 
   const toggleReaction = useCallback((ideaId: string, emoji: string) => {
     if (!user) return;
@@ -99,6 +105,7 @@ export function useIdeaBoard() {
     isDark,
     addIdea,
     toggleReaction,
+    updateIdeaPosition,
     toggleDark,
   };
 }
