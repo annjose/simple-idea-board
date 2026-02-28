@@ -68,6 +68,7 @@ export default function Page() {
           currentUserId={user!.id}
           displayName={myProfile!.displayName}
           ideas={ideas as IdeaWithReactions[]}
+          isDark={isDark}
           addIdea={addIdea}
           toggleReaction={toggleReaction}
           updateIdeaPosition={updateIdeaPosition}

@@ -18,6 +18,7 @@ interface CanvasBoardProps {
   currentUserId: string;
   displayName: string;
   ideas: IdeaWithReactions[];
+  isDark: boolean;
   addIdea: (content: string, x?: number, y?: number) => void;
   toggleReaction: (ideaId: string, emoji: string) => void;
   updateIdeaPosition: (ideaId: string, x: number, y: number) => void;
@@ -33,6 +34,7 @@ export default function CanvasBoard({
   currentUserId,
   displayName,
   ideas,
+  isDark,
   addIdea,
   toggleReaction,
   updateIdeaPosition,
@@ -54,6 +56,14 @@ export default function CanvasBoard({
     () => ({ ideasById, currentUserId, toggleReaction }),
     [ideasById, currentUserId, toggleReaction]
   );
+
+  // ── Sync: dark mode → tldraw ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.user.updateUserPreferences({ colorScheme: isDark ? 'dark' : 'light' });
+  }, [isDark, editorReady]);
 
   // ── Sync: InstantDB → tldraw ───────────────────────────────────────────────
 
@@ -191,7 +201,6 @@ export default function CanvasBoard({
         <Tldraw
           shapeUtils={shapeUtils}
           onMount={handleMount}
-          inferDarkMode
           components={{
             // Hide drawing tools — this is a post-it board, not a drawing app
             Toolbar: null,

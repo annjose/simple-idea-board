@@ -15,7 +15,7 @@ CANVAS
 - Each idea is a custom tldraw shape (`ideaCard`) that renders as a post-it note: pastel background, content text, author name, relative timestamp, emoji reactions
 - Create three new files: `app/components/canvas/IdeaCardShapeUtil.tsx`, `app/components/canvas/CanvasBoard.tsx`, `app/components/canvas/IdeasContext.ts`
 - Hide all tldraw drawing tools — this is a post-it board not a drawing app: set `Toolbar`, `MainMenu`, `PageMenu`, `ActionsMenu`, and `StylePanel` to `null` in the tldraw `components` prop
-- Add `inferDarkMode` to `<Tldraw>` so it respects the user's dark mode preference
+- Dark mode: do NOT use `inferDarkMode` on `<Tldraw>` — it follows the OS system preference and ignores the app's toggle. Instead, pass `isDark` as a prop to the canvas and call `editor.user.updateUserPreferences({ colorScheme: isDark ? 'dark' : 'light' })` in a `useEffect` watching `isDark`.
 - The header stays as a fixed overlay (z-50) above the canvas; the canvas sits below it
 
 SYNC
