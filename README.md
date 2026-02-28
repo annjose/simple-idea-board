@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Idea Board
+
+A real-time collaborative idea board where users post ideas as draggable post-it notes on an infinite canvas. Built as a three-phase demo project.
+
+**Live**: [simple-idea-board.vercel.app](https://simple-idea-board.vercel.app)
+
+## Features
+
+- **Infinite canvas** — pan, zoom, and arrange ideas freely with tldraw
+- **Draggable post-it notes** — drag any note anywhere; positions sync instantly to all users
+- **Real-time collaboration** — ideas, reactions, and positions update live across all sessions
+- **Emoji reactions** — react to ideas with 8 emojis; click without triggering drag
+- **Magic-link auth** — sign in with email, no password needed
+- **Dark mode** — full dark mode including the canvas
+- **Persistent layout** — note positions are stored in InstantDB and survive page refresh
+
+## Stack
+
+| | |
+|---|---|
+| Framework | Next.js 15, React 19, TypeScript |
+| Styling | Tailwind CSS v4 |
+| Canvas | tldraw v3.9.0 |
+| Database / Auth / Sync | InstantDB |
+| Deployment | Vercel |
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You'll need an InstantDB app ID. Create a free app at [instantdb.com](https://instantdb.com), then update the ID in `app/db.ts`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+After updating `instant.schema.ts`, push schema changes with:
 
-## Learn More
+```bash
+npx instant-cli@latest push schema --app YOUR_APP_ID
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+app/
+  db.ts                        — InstantDB singleton
+  types.ts                     — shared types
+  page.tsx                     — root page (auth gate + canvas)
+  hooks/useIdeaBoard.ts        — data fetching and mutations
+  components/
+    AuthModal.tsx              — magic-link auth flow
+    ThemeToggle.tsx            — dark/light toggle
+    canvas/
+      CanvasBoard.tsx          — tldraw canvas with InstantDB sync
+      IdeaCardShapeUtil.tsx    — custom post-it note shape
+      IdeasContext.ts          — React context for live reactions
+instant.schema.ts              — InstantDB schema
+spec-1.md / spec-2.md / spec-3.md  — per-phase build specs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build Phases
 
-## Deploy on Vercel
+The app was built in three incremental phases, each documented in its own spec file:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Phase 1** (`spec-1.md`) — localStorage, no backend
+- **Phase 2** (`spec-2.md`) — real-time sync via InstantDB, magic-link auth
+- **Phase 3** (`spec-3.md`) — infinite canvas with tldraw, draggable notes
